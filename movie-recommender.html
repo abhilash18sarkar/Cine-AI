@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CineAI · Movie Finder</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#080808;
+  --surface:#111;
+  --surface2:#1a1a1a;
+  --surface3:#242424;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.14);
+  --text:#efefef;
+  --muted:#777;
+  --muted2:#555;
+  --gold:#c9a84c;
+  --gold2:#e8c96a;
+  --red:#e50914;
+}
+
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+
+/* ── FILM GRAIN OVERLAY ── */
+body::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;
+  z-index:0;
+  opacity:0.4;
+}
+
+/* ════════════════════════════════
+   HOME PAGE
+════════════════════════════════ */
+#homePage{
+  position:relative;
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  padding:40px 24px 80px;
+  z-index:1;
+}
+
+/* Vignette bg */
+#homePage::before{
+  content:'';
+  position:fixed;
+  inset:0;
+  background:radial-gradient(ellipse at 50% 40%, rgba(201,168,76,0.04) 0%, transparent 65%),
+              radial-gradient(ellipse at 80% 80%, rgba(229,9,20,0.04) 0%, transparent 50%);
+  pointer-events:none;
+  z-index:-1;
+}
+
+.home-logo{
+  font-family:'Playfair Display',serif;
+  font-size:clamp(42px, 8vw, 80px);
+  font-weight:700;
+  letter-spacing:-1px;
+  color:var(--text);
+  margin-bottom:8px;
+  text-align:center;
+  animation:fadeUp 0.8s ease both;
+}
+.home-logo span{color:var(--gold);}
+
+.home-sub{
+  font-size:14px;
+  color:var(--muted);
+  letter-spacing:3px;
+  text-transform:uppercase;
+  text-align:center;
+  margin-bottom:56px;
+  animation:fadeUp 0.8s 0.1s ease both;
+}
+
+.search-wrap{
+  width:100%;
+  max-width:680px;
+  animation:fadeUp 0.8s 0.2s ease both;
+}
+
+.search-box{
+  position:relative;
+  margin-bottom:16px;
+}
+
+.search-input{
+  width:100%;
+  background:rgba(255,255,255,0.04);
+  border:1px solid var(--border2);
+  border-radius:14px;
+  color:var(--text);
+  font-family:'DM Sans',sans-serif;
+  font-size:16px;
+  font-weight:300;
+  padding:20px 140px 20px 24px;
+  outline:none;
+  transition:border-color 0.25s, background 0.25s;
+  backdrop-filter:blur(8px);
+}
+.search-input:focus{
+  border-color:rgba(201,168,76,0.4);
+  background:rgba(255,255,255,0.06);
+}
+.search-input::placeholder{color:var(--muted2);}
+
+.search-btn{
+  position:absolute;
+  right:8px;
+  top:50%;
+  transform:translateY(-50%);
+  background:var(--gold);
+  color:#000;
+  border:none;
+  border-radius:10px;
+  font-family:'DM Sans',sans-serif;
+  font-size:13px;
+  font-weight:500;
+  letter-spacing:0.5px;
+  padding:11px 22px;
+  cursor:pointer;
+  transition:background 0.15s, transform 0.1s;
+}
+.search-btn:hover{background:var(--gold2);}
+.search-btn:active{transform:translateY(-50%) scale(0.96);}
+.search-btn:disabled{opacity:0.4;cursor:not-allowed;}
+
+.prompt-hints{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:center;
+}
+.hint{
+  font-size:12px;
+  color:var(--muted);
+  padding:5px 12px;
+  border:1px solid var(--border);
+  border-radius:20px;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.hint:hover{border-color:var(--border2);color:#bbb;}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(18px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+/* ════════════════════════════════
+   THINKING PAGE
+════════════════════════════════ */
+#thinkPage{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:var(--bg);
+  z-index:100;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:40px;
+}
+
+.think-title{
+  font-family:'Playfair Display',serif;
+  font-size:22px;
+  color:var(--muted);
+  letter-spacing:1px;
+}
+
+.bubbles-wrap{
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+  max-width:480px;
+  width:100%;
+  padding:0 24px;
+}
+
+.bubble{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:14px 14px 14px 4px;
+  padding:14px 18px;
+  font-size:14px;
+  color:var(--muted);
+  opacity:0;
+  transform:translateY(8px) scale(0.97);
+  transition:opacity 0.4s ease, transform 0.4s ease;
+  position:relative;
+}
+.bubble.show{opacity:1;transform:translateY(0) scale(1);}
+.bubble::before{
+  content:'';
+  display:inline-block;
+  width:6px;height:6px;
+  background:var(--gold);
+  border-radius:50%;
+  margin-right:10px;
+  vertical-align:middle;
+  animation:pulse 1.2s infinite;
+}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.7);}}
+
+/* ════════════════════════════════
+   RESULTS PAGE
+════════════════════════════════ */
+#resultsPage{
+  display:none;
+  min-height:100vh;
+  z-index:1;
+  position:relative;
+}
+
+.results-nav{
+  padding:24px 40px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+.nav-logo{
+  font-family:'Playfair Display',serif;
+  font-size:22px;
+  color:var(--text);
+  cursor:pointer;
+}
+.nav-logo span{color:var(--gold);}
+.nav-divider{color:var(--muted2);}
+.nav-query{
+  font-size:13px;
+  color:var(--muted);
+  flex:1;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.new-search-btn{
+  background:transparent;
+  border:1px solid var(--border2);
+  border-radius:8px;
+  color:var(--muted);
+  font-family:'DM Sans',sans-serif;
+  font-size:12px;
+  padding:7px 16px;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.new-search-btn:hover{border-color:var(--border2);color:var(--text);}
+
+.results-body{
+  max-width:1000px;
+  margin:0 auto;
+  padding:36px 24px 80px;
+}
+
+.results-label{
+  font-size:11px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:24px;
+}
+.results-label span{color:var(--gold);}
+
+.movies-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:16px;
+}
+
+.movie-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:14px;
+  padding:22px;
+  cursor:pointer;
+  transition:border-color 0.2s, transform 0.2s, background 0.2s;
+  animation:cardIn 0.4s ease both;
+}
+.movie-card:hover{
+  border-color:rgba(201,168,76,0.3);
+  background:var(--surface2);
+  transform:translateY(-2px);
+}
+@keyframes cardIn{
+  from{opacity:0;transform:translateY(12px);}
+  to{opacity:1;transform:translateY(0);}
+}
+
+.card-year{
+  font-size:11px;
+  color:var(--muted);
+  letter-spacing:1px;
+  margin-bottom:8px;
+}
+.card-title{
+  font-family:'Playfair Display',serif;
+  font-size:20px;
+  font-weight:700;
+  line-height:1.2;
+  margin-bottom:10px;
+  color:var(--text);
+}
+.card-genres{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-bottom:12px;
+}
+.genre-pill{
+  font-size:11px;
+  padding:3px 10px;
+  border-radius:4px;
+  background:rgba(201,168,76,0.08);
+  color:var(--gold);
+  border:1px solid rgba(201,168,76,0.2);
+}
+.card-tagline{
+  font-size:13px;
+  color:#999;
+  line-height:1.6;
+}
+.card-cta{
+  margin-top:16px;
+  font-size:12px;
+  color:var(--muted2);
+  letter-spacing:0.5px;
+}
+
+/* ════════════════════════════════
+   MODAL
+════════════════════════════════ */
+#modalOverlay{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,0.85);
+  z-index:500;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  backdrop-filter:blur(4px);
+}
+#modalOverlay.open{display:flex;}
+
+.modal{
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:18px;
+  width:100%;
+  max-width:660px;
+  max-height:88vh;
+  overflow-y:auto;
+  animation:modalIn 0.3s ease;
+  position:relative;
+}
+@keyframes modalIn{
+  from{opacity:0;transform:scale(0.96) translateY(12px);}
+  to{opacity:1;transform:scale(1) translateY(0);}
+}
+
+.modal-close{
+  position:sticky;
+  top:0;
+  display:flex;
+  justify-content:flex-end;
+  padding:16px 20px 0;
+  background:var(--surface);
+  z-index:2;
+}
+.close-btn{
+  background:var(--surface3);
+  border:none;
+  color:var(--muted);
+  width:32px;height:32px;
+  border-radius:50%;
+  font-size:16px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background 0.15s, color 0.15s;
+}
+.close-btn:hover{background:var(--border2);color:var(--text);}
+
+.modal-body{padding:0 28px 28px;}
+
+.modal-year{font-size:12px;color:var(--muted);letter-spacing:1px;margin-bottom:8px;}
+.modal-title{
+  font-family:'Playfair Display',serif;
+  font-size:28px;
+  font-weight:700;
+  line-height:1.15;
+  margin-bottom:12px;
+}
+.modal-genres{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px;}
+
+.modal-loading{
+  display:flex;flex-direction:column;align-items:center;
+  gap:14px;padding:40px 0;color:var(--muted);font-size:13px;
+}
+.ring{
+  width:32px;height:32px;
+  border:2px solid var(--surface3);
+  border-top-color:var(--gold);
+  border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* modal sections */
+.modal-section{margin-bottom:24px;}
+.modal-section-label{
+  font-size:10px;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:10px;
+}
+.modal-text{font-size:14px;color:#bbb;line-height:1.75;}
+
+/* ratings row */
+.ratings-row{display:flex;gap:12px;flex-wrap:wrap;}
+.rating-chip{
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:10px;
+  padding:10px 16px;
+  text-align:center;
+  min-width:90px;
+}
+.rating-source{font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;}
+.rating-val{font-size:20px;font-weight:500;color:var(--gold);}
+.rating-max{font-size:11px;color:var(--muted2);}
+
+/* OTT platforms */
+.ott-row{display:flex;flex-wrap:wrap;gap:8px;}
+.ott-chip{
+  padding:6px 14px;
+  border-radius:6px;
+  border:1px solid var(--border2);
+  background:var(--surface2);
+  font-size:12px;
+  color:#ccc;
+}
+
+/* ── ERROR ── */
+.err{
+  background:rgba(229,9,20,0.07);
+  border:1px solid rgba(229,9,20,0.2);
+  border-radius:10px;
+  padding:14px 18px;
+  font-size:13px;
+  color:#ff8a8a;
+  margin:20px 0;
+  display:none;
+}
+
+@media(max-width:600px){
+  .results-nav{padding:16px 20px;}
+  .results-body{padding:24px 16px 60px;}
+  .modal-body{padding:0 18px 22px;}
+  .modal-title{font-size:22px;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══════════════ HOME PAGE ══════════════ -->
+<div id="homePage">
+  <div class="home-logo">Cine<span>AI</span></div>
+  <div class="home-sub">Your personal film oracle</div>
+
+  <div class="search-wrap">
+    <div class="search-box">
+      <input class="search-input" id="homeInput" type="text"
+        placeholder="Describe what you want to watch…" />
+      <button class="search-btn" id="homeBtn" onclick="startSearch()">Find Films</button>
+    </div>
+    <div class="prompt-hints">
+      <div class="hint" onclick="fillHint(this)">Mind-bending sci-fi with a twist ending</div>
+      <div class="hint" onclick="fillHint(this)">Dark psychological thriller, slow burn</div>
+      <div class="hint" onclick="fillHint(this)">Epic historical war drama</div>
+      <div class="hint" onclick="fillHint(this)">Feel-good comedy for a lazy Sunday</div>
+      <div class="hint" onclick="fillHint(this)">Underrated hidden gems from the 90s</div>
+    </div>
+    <div class="err" id="homeErr"></div>
+  </div>
+</div>
+
+<!-- ══════════════ THINKING PAGE ══════════════ -->
+<div id="thinkPage">
+  <div class="think-title">Searching the archives…</div>
+  <div class="bubbles-wrap" id="bubblesWrap"></div>
+</div>
+
+<!-- ══════════════ RESULTS PAGE ══════════════ -->
+<div id="resultsPage">
+  <nav class="results-nav">
+    <div class="nav-logo" onclick="goHome()">Cine<span>AI</span></div>
+    <div class="nav-divider">/</div>
+    <div class="nav-query" id="navQuery"></div>
+    <button class="new-search-btn" onclick="goHome()">New Search</button>
+  </nav>
+  <div class="results-body">
+    <div class="results-label" id="resultsLabel"></div>
+    <div class="movies-grid" id="moviesGrid"></div>
+  </div>
+</div>
+
+<!-- ══════════════ MODAL ══════════════ -->
+<div id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modal">
+    <div class="modal-close">
+      <button class="close-btn" onclick="closeModalDirect()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+const API_KEY = 'AIzaSyCkNQpl4RutQ6gjjgwo6310SiFLf1fbxDw';
+
+const THOUGHTS = [
+  'Digging through decades of cinema…',
+  'Matching your vibe to the right films…',
+  'Consulting the critics…',
+  'Filtering out the forgettable ones…',
+  'Curating something worth your time…',
+  'Almost there — polishing the list…'
+];
+
+let currentQuery = '';
+let thoughtTimer = null;
+
+/* ── NAVIGATION ── */
+function show(id) {
+  ['homePage','thinkPage','resultsPage'].forEach(p => {
+    const el = document.getElementById(p);
+    el.style.display = 'none';
+    if (p === 'thinkPage') el.style.display = 'none';
+  });
+  const target = document.getElementById(id);
+  if (id === 'thinkPage') {
+    target.style.display = 'flex';
+  } else {
+    target.style.display = 'block';
+  }
+}
+
+function goHome() {
+  clearThoughts();
+  show('homePage');
+  document.getElementById('homeInput').value = '';
+  document.getElementById('homeErr').style.display = 'none';
+}
+
+/* ── HINTS ── */
+function fillHint(el) {
+  document.getElementById('homeInput').value = el.textContent;
+  document.getElementById('homeInput').focus();
+}
+
+/* ── THOUGHT BUBBLES ── */
+function startThoughts() {
+  const wrap = document.getElementById('bubblesWrap');
+  wrap.innerHTML = '';
+  let i = 0;
+  function next() {
+    if (i >= THOUGHTS.length) return;
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    b.textContent = THOUGHTS[i++];
+    wrap.appendChild(b);
+    requestAnimationFrame(() => requestAnimationFrame(() => b.classList.add('show')));
+    thoughtTimer = setTimeout(next, 900);
+  }
+  next();
+}
+function clearThoughts() {
+  if (thoughtTimer) clearTimeout(thoughtTimer);
+  document.getElementById('bubblesWrap').innerHTML = '';
+}
+
+/* ── GEMINI CALL ── */
+async function callGemini(prompt) {
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`,
+    {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        contents: [{parts: [{text: prompt}]}],
+        generationConfig: {temperature: 0.85, maxOutputTokens: 2000}
+      })
+    }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `API error ${res.status}`);
+  }
+  const data = await res.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+}
+
+/* ── SEARCH ── */
+document.getElementById('homeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') startSearch();
+});
+
+async function startSearch() {
+  const q = document.getElementById('homeInput').value.trim();
+  if (!q) return;
+  currentQuery = q;
+
+  document.getElementById('homeErr').style.display = 'none';
+  document.getElementById('homeBtn').disabled = true;
+
+  show('thinkPage');
+  startThoughts();
+
+  const prompt = `You are a world-class film expert and curator. A user wants movie recommendations based on: "${q}"
+
+Return exactly 8 movie recommendations as a JSON array. Each object must have:
+- "title": exact movie title (string)
+- "year": release year as string e.g. "2014"
+- "genres": array of 2-3 genre strings
+- "director": director name (string)
+- "tagline": one gripping sentence (max 20 words) capturing why this film fits the request
+- "imdb": IMDb rating out of 10 as string e.g. "8.3" (use real known ratings, estimate if unsure)
+- "rt": Rotten Tomatoes score as string e.g. "94%" (use real known scores, estimate if unsure)
+- "ott": array of up to 4 streaming platforms where this is commonly available globally e.g. ["Netflix","Prime Video","Apple TV+","HBO Max"] — only include real platforms, if unsure put ["Check JustWatch"]
+
+Return ONLY the raw JSON array. No markdown, no explanation, no backticks.`;
+
+  try {
+    const raw = await callGemini(prompt);
+    const clean = raw.replace(/```json|```/gi,'').trim();
+    const movies = JSON.parse(clean);
+    clearThoughts();
+    renderResults(movies, q);
+  } catch(e) {
+    clearThoughts();
+    show('homePage');
+    const err = document.getElementById('homeErr');
+    err.textContent = 'Something went wrong: ' + e.message;
+    err.style.display = 'block';
+  } finally {
+    document.getElementById('homeBtn').disabled = false;
+  }
+}
+
+/* ── RENDER RESULTS ── */
+function renderResults(movies, query) {
+  document.getElementById('navQuery').textContent = '"' + query + '"';
+  document.getElementById('resultsLabel').innerHTML =
+    `<span>${movies.length} films</span> curated for you`;
+
+  const grid = document.getElementById('moviesGrid');
+  grid.innerHTML = '';
+
+  movies.forEach((m, i) => {
+    const card = document.createElement('div');
+    card.className = 'movie-card';
+    card.style.animationDelay = (i * 0.07) + 's';
+    card.innerHTML = `
+      <div class="card-year">${esc(m.year || '')} · ${esc(m.director || '')}</div>
+      <div class="card-title">${esc(m.title)}</div>
+      <div class="card-genres">${(m.genres||[]).map(g=>`<span class="genre-pill">${esc(g)}</span>`).join('')}</div>
+      <div class="card-tagline">${esc(m.tagline||'')}</div>
+      <div class="card-cta">Tap for full breakdown →</div>
+    `;
+    card.addEventListener('click', () => openModal(m));
+    grid.appendChild(card);
+  });
+
+  show('resultsPage');
+}
+
+/* ── MODAL ── */
+function openModal(movie) {
+  document.getElementById('modalOverlay').classList.add('open');
+  const body = document.getElementById('modalBody');
+
+  body.innerHTML = `
+    <div class="modal-year">${esc(movie.year||'')} · Directed by ${esc(movie.director||'')}</div>
+    <div class="modal-title">${esc(movie.title)}</div>
+    <div class="modal-genres">${(movie.genres||[]).map(g=>`<span class="genre-pill">${esc(g)}</span>`).join('')}</div>
+    <div class="modal-loading">
+      <div class="ring"></div>
+      Loading film breakdown…
+    </div>
+  `;
+
+  loadBio(movie, body);
+}
+
+async function loadBio(movie, body) {
+  const prompt = `You are a film critic and enthusiast. For the movie "${movie.title}" (${movie.year}), write a short breakdown in this exact JSON format:
+{
+  "recap": "A 60-70 word spoiler-free synopsis that captures the tone, setting, and premise without revealing plot twists or the ending.",
+  "whyWatch": "A 60-70 word personal recommendation explaining why someone would love this film — reference specific strengths like cinematography, performances, pacing, emotional impact, or originality. Write in second person."
+}
+Return ONLY raw JSON. No markdown, no backticks.`;
+
+  try {
+    const raw = await callGemini(prompt);
+    const clean = raw.replace(/```json|```/gi,'').trim();
+    const bio = JSON.parse(clean);
+
+    const ottHtml = (movie.ott||['Check JustWatch']).map(p=>`<span class="ott-chip">${esc(p)}</span>`).join('');
+
+    body.innerHTML = `
+      <div class="modal-year">${esc(movie.year||'')} · Directed by ${esc(movie.director||'')}</div>
+      <div class="modal-title">${esc(movie.title)}</div>
+      <div class="modal-genres">${(movie.genres||[]).map(g=>`<span class="genre-pill">${esc(g)}</span>`).join('')}</div>
+
+      <div class="modal-section">
+        <div class="modal-section-label">The Film</div>
+        <div class="modal-text">${esc(bio.recap||'')}</div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label">Why You'll Love It</div>
+        <div class="modal-text">${esc(bio.whyWatch||'')}</div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label">Ratings</div>
+        <div class="ratings-row">
+          <div class="rating-chip">
+            <div class="rating-source">IMDb</div>
+            <div class="rating-val">${esc(movie.imdb||'—')}<span class="rating-max"> /10</span></div>
+          </div>
+          <div class="rating-chip">
+            <div class="rating-source">Rotten Tomatoes</div>
+            <div class="rating-val">${esc(movie.rt||'—')}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-section">
+        <div class="modal-section-label">Where to Watch</div>
+        <div class="ott-row">${ottHtml}</div>
+      </div>
+    `;
+  } catch(e) {
+    body.querySelector('.modal-loading').innerHTML =
+      `<span style="color:#ff8a8a;font-size:13px;">Couldn't load details: ${esc(e.message)}</span>`;
+  }
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeModalDirect();
+});
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
